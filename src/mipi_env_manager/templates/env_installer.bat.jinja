@@ -1,0 +1,36 @@
+pushd %~dp0
+
+{% if create_env %}
+call conda create --name {{ env_name }} -y python={{ py_version }}
+if %errorlevel% neq 0 goto FailClause
+{% endif %}
+
+call conda env list
+if %errorlevel% neq 0 goto FailClause
+
+call conda.bat activate {{ env_name }}
+if %errorlevel% neq 0 goto FailClause
+
+call conda info --env
+if %errorlevel% neq 0 goto FailClause
+
+pip install --upgrade -r requirements.txt {% if create_env %}--force-reinstall{% endif %}
+if %errorlevel% neq 0 goto FailClause
+
+popd
+pip list
+pause
+
+goto :eof
+
+:FailClause
+
+popd
+
+echo There was an Error in the script
+echo There was an Error in the script
+echo There was an Error in the script
+echo There was an Error in the script
+echo There was an Error in the script
+
+pause

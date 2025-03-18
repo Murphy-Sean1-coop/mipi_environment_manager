@@ -1,0 +1,7 @@
+{% for k,v in environment_variables.items() %}
+SETX {{ k }} {{ v }}
+{% endfor %}
+
+{% for installer in installers %}
+call {{ installer }}\update_env.bat
+{% endfor %}

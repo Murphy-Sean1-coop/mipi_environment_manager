@@ -1,0 +1,42 @@
+environments:
+  myenv:
+    setup:
+      py_version: 3.12
+      include_in_master: True
+    packages:
+      my_pkg:
+        source: github
+        path: https://github.com/psf/requests
+      my_pkg2:
+        source: github
+        path: https://github.com/psf/requests
+        version: 1.0.0
+      my_pkg3:
+        source: github
+        path: https://github.com/psf/requests
+        version: 1.0.0
+        version_policy: exact
+      my_pkg4:
+        source: github
+        path: https://github.com/psf/requests
+        version: 1.0.0
+        version_policy: no_major_increment
+      my_pkg5:
+        source: pypi
+      my_pkg6:
+        source: pypi
+        path: https://github.com/psf/requests
+        version: 1.0.0
+      my_pkg7:
+        source: pypi
+        path: https://github.com/psf/requests
+        version: 1.0.0
+        version_policy: exact
+      my_pkg8:
+        source: pypi
+        path: https://github.com/psf/requests
+        version: 1.0.0
+        version_policy: no_major_increment
+
+setup:
+  outpath:
