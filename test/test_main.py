@@ -3,7 +3,7 @@ from unittest.mock import patch, MagicMock
 from tempfile import tempdir
 import os
 from jinja2 import Template
-from mipi_env_manager.main2 import (
+from mipi_env_manager.main import (
     get_environ
     ,Setup
     ,YmlSetup
@@ -31,25 +31,15 @@ from mipi_env_manager.main2 import (
 )
 
 
-def test_get_token(monkeypatch):
+def test_get_environ(monkeypatch):
     monkeypatch.setenv("GH_TOKEN", "token_val")
-    assert get_env("GH_TOKEN") == "token_val"
+    assert get_environ("GH_TOKEN") == "token_val"
 
 
 def test_get_token_raises(monkeypatch):
     monkeypatch.delenv("GH_TOKEN")
     with pytest.raises(EnvironmentError):
-        print(get_env("GH_TOKEN"))
-
-
-def test_read_yml():
-    res = read_yml("test_dependencies.yml")
-    assert isinstance(res, dict)
-
-
-def test_parse_path():
-    path = "https://github.com/psf/requests"
-    assert parse_path(path) == ["psf", "requests"]
+        print(get_environ("GH_TOKEN"))
 
 
 class TestVersion:
@@ -75,22 +65,22 @@ class TestVersion:
             pytest.param("1.0.0", None, "v1.0.0", id="version_implies_exact"),
         ]
     )
-    @patch("mipi_env_manager.main.get_latest_minor")
+    @patch("mipi_env_manager.main.GHTagReleases.get_latest_minor")
     def test_gh_version(self, mock_get_latest_minor, v, policy, res):
         mock_get_latest_minor.return_value = "1.1.0"
         path = "https://github.com/psf/requests"
-        assert GHVersion(path, policy, version_str=v).build() == res
+        assert GHVersion("pfs","requests",policy, version_str=v).build() == res
 
     def test_pypi_version_raises(self):
         with pytest.raises(ValueError):
             PyPiVersion("exact", version_str=None).build()
 
-    @patch("mipi_env_manager.main.get_latest_minor")
+    @patch("mipi_env_manager.main.GHTagReleases.get_latest_minor")
     def test_gh_version_raises(self, mock_get_latest_minor):
         mock_get_latest_minor.return_value = "1.1.0"
         path = "https://github.com/psf/requests"
         with pytest.raises(ValueError):
-            GHVersion(path, "exact", version_str=None).build()
+            GHVersion("pfs","requests", "exact", version_str=None).build()
 
 
 class TestReqString:
@@ -105,7 +95,7 @@ class TestReqString:
         obj.add_version("exact", "1.0.0")  # TODO change these to 1.1.0 for consistancey
         assert obj.build() == "requests==1.0.0"
 
-    @patch("mipi_env_manager.main.get_latest_minor")
+    @patch("mipi_env_manager.main.GHTagReleases.get_latest_minor")
     def test_gh_reqstring(self, mock_get_latest_minor):
         obj = GHReqString()
         assert obj.build() == ""
@@ -117,7 +107,7 @@ class TestReqString:
         assert obj.build() == "requests @ git+https://github.com/psf/requests.git"
 
         mock_get_latest_minor.return_value = "1.1.0"
-        obj.add_tag("https://github.com/psf/requests", "exact", "1.1.0")
+        obj.add_tag("psf","requests", "exact", "1.1.0")
         assert obj.build() == "requests @ git+https://github.com/psf/requests.git@v1.1.0"
 
         obj.add_egg("requests")
@@ -130,7 +120,7 @@ class TestPackage:
         assert PyPiPackage("mypackage", "exact", version_str="1.0.0").req_string() == "mypackage==1.0.0"
         assert PyPiPackage("mypackage", "no_major_increment", version_str="1.0.0").req_string() == "mypackage~=1.0.0"
 
-    @patch("mipi_env_manager.main.get_latest_minor")
+    @patch("mipi_env_manager.main.GHTagReleases.get_latest_minor")
     def test_gh_package(self, mock_get_latest_minor):
         mock_get_latest_minor.return_value = "1.1.0"
         # todo make paths consistant with pkgname
@@ -151,7 +141,7 @@ class TestFactory:
         assert factory.create("mypackage", {"source": "pypi", "version": "1.0.0",
                                             "version_policy": "no_major_increment"}).req_string() == "mypackage~=1.0.0"
 
-    @patch("mipi_env_manager.main.get_latest_minor")
+    @patch("mipi_env_manager.main.GHTagReleases.get_latest_minor")
     def test_gh_factory(self, mock_get_latest_minor):
         factory = Gh()
         mock_get_latest_minor.return_value = "1.1.0"
@@ -164,19 +154,6 @@ class TestFactory:
         assert factory.create("mypackage",
                               {"source": "pypi", "version": "1.0.0", "version_policy": "no_major_increment",
                                "path": "https://github.com/psf/requests"}).req_string() == "mypackage @ git+https://github.com/psf/requests.git@v1.1.0#egg=mypackage"
-
-
-@patch("mipi_env_manager.main.get_latest_minor")
-def test_dependancies(mock_get_latest_minor):
-    mock_get_latest_minor.return_value = "1.1.0"
-    config = read_yml("test_dependencies.yml")["environments"]["myenv"]
-    res = Dependancies(config).create_strings()
-
-    with open("expected_reqs.txt", "r") as f:
-        expected_reqs = f.read()
-
-    assert res == expected_reqs
-
 
 
 class TestBatInstaller:

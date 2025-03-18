@@ -3,7 +3,7 @@ from unittest.mock import patch, MagicMock
 from tempfile import tempdir
 import os
 from jinja2 import Template
-from mipi_env_manager.main import (
+from mipi_env_manager._main import (
     get_env,
     read_yml,
     parse_path,
@@ -72,7 +72,7 @@ class TestVersion:
             pytest.param("1.0.0", None, "v1.0.0", id="version_implies_exact"),
         ]
     )
-    @patch("mipi_env_manager.main.get_latest_minor")
+    @patch("mipi_env_manager._main.get_latest_minor")
     def test_gh_version(self, mock_get_latest_minor, v, policy, res):
         mock_get_latest_minor.return_value = "1.1.0"
         path = "https://github.com/psf/requests"
@@ -82,7 +82,7 @@ class TestVersion:
         with pytest.raises(ValueError):
             PyPiVersion("exact", version_str=None).build()
 
-    @patch("mipi_env_manager.main.get_latest_minor")
+    @patch("mipi_env_manager._main.get_latest_minor")
     def test_gh_version_raises(self, mock_get_latest_minor):
         mock_get_latest_minor.return_value = "1.1.0"
         path = "https://github.com/psf/requests"
@@ -102,7 +102,7 @@ class TestReqString:
         obj.add_version("exact", "1.0.0")  # TODO change these to 1.1.0 for consistancey
         assert obj.build() == "requests==1.0.0"
 
-    @patch("mipi_env_manager.main.get_latest_minor")
+    @patch("mipi_env_manager._main.get_latest_minor")
     def test_gh_reqstring(self, mock_get_latest_minor):
         obj = GHReqString()
         assert obj.build() == ""
@@ -127,7 +127,7 @@ class TestPackage:
         assert PyPiPackage("mypackage", "exact", version_str="1.0.0").req_string() == "mypackage==1.0.0"
         assert PyPiPackage("mypackage", "no_major_increment", version_str="1.0.0").req_string() == "mypackage~=1.0.0"
 
-    @patch("mipi_env_manager.main.get_latest_minor")
+    @patch("mipi_env_manager._main.get_latest_minor")
     def test_gh_package(self, mock_get_latest_minor):
         mock_get_latest_minor.return_value = "1.1.0"
         # todo make paths consistant with pkgname
@@ -148,7 +148,7 @@ class TestFactory:
         assert factory.create("mypackage", {"source": "pypi", "version": "1.0.0",
                                             "version_policy": "no_major_increment"}).req_string() == "mypackage~=1.0.0"
 
-    @patch("mipi_env_manager.main.get_latest_minor")
+    @patch("mipi_env_manager._main.get_latest_minor")
     def test_gh_factory(self, mock_get_latest_minor):
         factory = Gh()
         mock_get_latest_minor.return_value = "1.1.0"
@@ -163,7 +163,7 @@ class TestFactory:
                                "path": "https://github.com/psf/requests"}).req_string() == "mypackage @ git+https://github.com/psf/requests.git@v1.1.0#egg=mypackage"
 
 
-@patch("mipi_env_manager.main.get_latest_minor")
+@patch("mipi_env_manager._main.get_latest_minor")
 def test_dependancies(mock_get_latest_minor):
     mock_get_latest_minor.return_value = "1.1.0"
     config = read_yml("test_dependencies.yml")["environments"]["myenv"]
