@@ -20,6 +20,9 @@ def get_environ(name):
 
 
 class Setup(ABC):
+    """
+    A setup file used to determine the environments, dependencies and environment variables.
+    """
 
     @abstractmethod
     def _get_path(self) -> Path:
@@ -31,6 +34,9 @@ class Setup(ABC):
 
 
 class YmlSetup(Setup):
+    """
+    A yaml file used to determine the environments, dependencies and environment variables.
+    """
 
     def __init__(self, environ_path_name):
         self.environ_path_name = environ_path_name
@@ -47,6 +53,9 @@ class YmlSetup(Setup):
 
 
 class Auth(ABC):
+    """
+    authorization used by the RepoRequest API
+    """
 
     @abstractmethod
     def get_headers(self):
@@ -58,6 +67,9 @@ class Auth(ABC):
 
 
 class GHPatAuth(Auth):
+    """
+    Github Patient token used by the GHRepoRequest class
+    """
 
     def __init__(self, environ_token_name):
         self.environ_token_name = environ_token_name
@@ -73,6 +85,10 @@ class GHPatAuth(Auth):
 
 
 class RepoRequest(ABC):
+    """
+    Request the repo releases from a repository. This is needed because when downloading a package from Github you
+    need to specify the Tag, and cant specify the latest, or latest without changing the major version.
+    """
 
     @property
     @abstractmethod
@@ -81,6 +97,11 @@ class RepoRequest(ABC):
 
 
 class GHRequest(RepoRequest):
+    """
+    A request get all release tags from a github repository. This is needed because when downloading a package from Github you
+    need to specify the Tag, and cant specify the latest, or latest without changing the major version.
+    """
+
     base_url = "https://api.github.com/repos"
     url_suffix = "releases"
 
@@ -106,6 +127,9 @@ class GHRequest(RepoRequest):
 
 
 class Releases(ABC):
+    """
+    A list of releases and methods to select the correct one
+    """
 
     @abstractmethod
     def get_latest_minor(self):
@@ -117,6 +141,9 @@ class Releases(ABC):
 
 
 class GHTagReleases(Releases):
+    """
+    A list of github releases and methods to select the correct one
+    """
 
     def __init__(self, releases: list, current_version):
         self.releases = releases
@@ -166,6 +193,9 @@ class GHTagReleases(Releases):
 
 
 class Version(ABC):
+    """
+    The version specifier in a single dependency of a requirements.txt file
+    """
 
     def __init__(self, policy="latest", version_str=None):
         self.version_str = version_str
@@ -185,6 +215,11 @@ class Version(ABC):
 
 
 class PyPiVersion(Version):
+    """
+    The version specifier for a pypi dependency in a requirements.txt file.
+        Example:
+             some_package`==1.0.0`
+    """
 
     def format(self):
         if self.version_str is None:
@@ -197,6 +232,12 @@ class PyPiVersion(Version):
 
 
 class GHVersion(Version):
+    """
+    The version specifier for a github dependancy as a tag in a requirments.txt file.
+        Example:
+             some_package`v1.0.0`
+    """
+
     def __init__(self, user, repo, policy, version_str=None):
         super().__init__(policy, version_str)
         self.repo = repo
@@ -220,6 +261,9 @@ class GHVersion(Version):
 
 
 class ReqString:
+    """
+    DEFINES the methods to assemble an entire dependency in the reqirements.txt file
+    """
 
     def __init__(self):
         self._req_string = []
@@ -235,14 +279,22 @@ class ReqString:
 
 
 class PypiReqString(ReqString):
-
+    """
+    DEFINES the methods to assemble an entire dependency in the reqirements.txt file in the pypi format
+    Example:
+         `package==1.0.0`
+    """
     def add_version(self, policy, version_str):
         version = PyPiVersion(policy, version_str).build()
         self._add_part(f"{version}")
 
 
 class GHReqString(ReqString):
-
+    """
+    DEFINES the methods to assemble an entire dependency in the reqirements.txt file in the github format
+        Example:
+             `requests @ git+https://github.com/psf/requests.git@v2.23.3#egg=request`
+    """
     def add_path(self, path):
         self._add_part(f" @ git+{path}.git")
 
@@ -255,7 +307,9 @@ class GHReqString(ReqString):
 
 
 class Package(ABC):
-
+    """
+    DEFINES the methods to assemble an entire dependency in the reqirements.txt file
+    """
     def __init__(self, req_string: ReqString, name, policy, version_str=None):
         self.name = name
         self.policy = policy
@@ -268,6 +322,11 @@ class Package(ABC):
 
 
 class PyPiPackage(Package):
+    """
+    Assembles an entire dependency in the reqirements.txt file in the pypi format
+    Example:
+         `package==1.0.0`
+    """
     def __init__(self, name, policy, version_str=None):
         super().__init__(PypiReqString(), name, policy, version_str)
 
@@ -279,6 +338,11 @@ class PyPiPackage(Package):
 
 
 class GitHubPackage(Package):
+    """
+    Assembles an entire dependency in the reqirements.txt file in the github format
+        Example:
+             `requests @ git+https://github.com/psf/requests.git@v2.23.3#egg=request`
+    """
     def __init__(self, name, policy, path, version_str=None):
         super().__init__(GHReqString(), name, policy, version_str)
         self.path = path
@@ -299,23 +363,34 @@ class GitHubPackage(Package):
 
 
 class PkgFactory(ABC):
-
+    """
+    Factory to call the package string builder.
+    """
     @abstractmethod
     def create(self, name, vals):
         raise NotImplementedError  # pragma: no cover
 
 
 class Pypi(PkgFactory):
+    """
+    Factory to call the pypi package string builder.
+    """
     def create(self, name, vals):
         return PyPiPackage(name, vals.get("version_policy"), vals.get("version"))
 
 
 class Gh(PkgFactory):
+    """
+    Factory to call the github package string builder.
+    """
     def create(self, name, vals):
         return GitHubPackage(name, vals.get("version_policy"), vals.get("path"), vals.get("version"))
 
 
 class Dependancies():
+    """
+    Creates the contents of the requirments.txt file
+    """
     def __init__(self, config):
         self.config = config
         self.dict_ = {
@@ -327,6 +402,9 @@ class Dependancies():
         return self.config["packages"]
 
     def create_strings(self):
+        """
+        loop through each dependancy in the environment config and create the call the correct creator
+        """
         dependencies = []
         for k, v in self._read_dependencies().items():
             pkg = self.dict_[v["source"]]()
@@ -335,6 +413,7 @@ class Dependancies():
 
 
 class BatInstaller:
+    """A batch script that installs environments. Uses a jinja template based on what it is installing"""
 
     def __init__(self, template, out_path):
         self.template = template
@@ -373,9 +452,12 @@ class BatInstaller:
 
 
 class PublishInstallers:
+    """
+    Builds all batch installers and writes them to the computers file system
+    """
     def __init__(self, setup: Setup):
         self.setup = setup
-        self.config = self.get_config() # TODO i dont like having function calls in the init
+        self.config = self.get_config()  # TODO i dont like having function calls in the init
 
     def get_config(self):
         return self.setup.get_config()
@@ -405,6 +487,7 @@ class PublishInstallers:
             deps = Dependancies(config)
             with open(os.path.join(outpath, env, "requirements.txt"), "w") as f:
                 f.write(deps.create_strings())
+
 
 @click.command()
 def main():
