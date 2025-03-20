@@ -95,6 +95,10 @@ class RepoRequest(ABC):
     def url(self) -> str:
         raise NotImplementedError  # pragma: no cover
 
+    @abstractmethod
+    def get_repo_releases(self) -> list:
+        raise NotImplementedError  # pragma: no cover
+
 
 class GHRequest(RepoRequest):
     """
