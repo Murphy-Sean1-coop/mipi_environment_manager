@@ -310,7 +310,7 @@ class GHReqString(ReqString):
         self._add_part(f"#egg={name}")
 
 
-class Package(ABC):
+class ReqStringCreator(ABC):
     """
     DEFINES the methods to assemble an entire dependency in the reqirements.txt file
     """
@@ -325,7 +325,7 @@ class Package(ABC):
         raise NotImplementedError  # pragma: no cover
 
 
-class PyPiPackage(Package):
+class PyPiReqStringCreator(ReqStringCreator):
     """
     Assembles an entire dependency in the reqirements.txt file in the pypi format
     Example:
@@ -341,7 +341,7 @@ class PyPiPackage(Package):
         return self._req_string.build()
 
 
-class GitHubPackage(Package):
+class GHReqStringCreator(ReqStringCreator):
     """
     Assembles an entire dependency in the reqirements.txt file in the github format
         Example:
@@ -375,20 +375,20 @@ class PkgFactory(ABC):
         raise NotImplementedError  # pragma: no cover
 
 
-class Pypi(PkgFactory):
+class PypiPkgFactory(PkgFactory):
     """
     Factory to call the pypi package string builder.
     """
     def create(self, name, vals):
-        return PyPiPackage(name, vals.get("version_policy"), vals.get("version"))
+        return PyPiReqStringCreator(name, vals.get("version_policy"), vals.get("version"))
 
 
-class Gh(PkgFactory):
+class GHPkgFactory(PkgFactory):
     """
     Factory to call the github package string builder.
     """
     def create(self, name, vals):
-        return GitHubPackage(name, vals.get("version_policy"), vals.get("path"), vals.get("version"))
+        return GHReqStringCreator(name, vals.get("version_policy"), vals.get("path"), vals.get("version"))
 
 
 class Dependancies():
@@ -398,8 +398,8 @@ class Dependancies():
     def __init__(self, config):
         self.config = config
         self.dict_ = {
-            "github": Gh,
-            "pypi": Pypi
+            "github": GHPkgFactory,
+            "pypi": PypiPkgFactory
         }
 
     def _read_dependencies(self):

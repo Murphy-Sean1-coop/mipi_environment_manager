@@ -5,29 +5,29 @@ import os
 from jinja2 import Template
 from mipi_env_manager.main import (
     get_environ
-    ,Setup
-    ,YmlSetup
-    ,Auth
-    ,GHPatAuth
-    ,RepoRequest
-    ,GHRequest
-    ,Releases
-    ,GHTagReleases
-    ,Version
-    ,PyPiVersion
-    ,GHVersion
-    ,ReqString
-    ,PypiReqString
-    ,GHReqString
-    ,Package
-    ,PyPiPackage
-    ,GitHubPackage
-    ,PkgFactory
-    ,Pypi
-    ,Gh
-    ,Dependancies
-    ,BatInstaller
-    ,main
+    , Setup
+    , YmlSetup
+    , Auth
+    , GHPatAuth
+    , RepoRequest
+    , GHRequest
+    , Releases
+    , GHTagReleases
+    , Version
+    , PyPiVersion
+    , GHVersion
+    , ReqString
+    , PypiReqString
+    , GHReqString
+    , ReqString
+    , PyPiReqStringCreator
+    , GHReqStringCreator
+    , PkgFactory
+    , PypiPkgFactory
+    , GHPkgFactory
+    , Dependancies
+    , BatInstaller
+    , main
 )
 
 
@@ -117,23 +117,23 @@ class TestReqString:
 class TestPackage:
 
     def test_pypi_package(self):
-        assert PyPiPackage("mypackage", "exact", version_str="1.0.0").req_string() == "mypackage==1.0.0"
-        assert PyPiPackage("mypackage", "no_major_increment", version_str="1.0.0").req_string() == "mypackage~=1.0.0"
+        assert PyPiReqStringCreator("mypackage", "exact", version_str="1.0.0").req_string() == "mypackage==1.0.0"
+        assert PyPiReqStringCreator("mypackage", "no_major_increment", version_str="1.0.0").req_string() == "mypackage~=1.0.0"
 
     @patch("mipi_env_manager.main.GHTagReleases.get_latest_minor")
     def test_gh_package(self, mock_get_latest_minor):
         mock_get_latest_minor.return_value = "1.1.0"
         # todo make paths consistant with pkgname
-        assert GitHubPackage("mypackage", "exact", path="https://github.com/psf/requests",
-                             version_str="1.0.0").req_string() == "mypackage @ git+https://github.com/psf/requests.git@v1.0.0#egg=mypackage"
-        assert GitHubPackage("mypackage", "no_major_increment", path="https://github.com/psf/requests",
-                             version_str="1.0.0").req_string() == "mypackage @ git+https://github.com/psf/requests.git@v1.1.0#egg=mypackage"
+        assert GHReqStringCreator("mypackage", "exact", path="https://github.com/psf/requests",
+                                  version_str="1.0.0").req_string() == "mypackage @ git+https://github.com/psf/requests.git@v1.0.0#egg=mypackage"
+        assert GHReqStringCreator("mypackage", "no_major_increment", path="https://github.com/psf/requests",
+                                  version_str="1.0.0").req_string() == "mypackage @ git+https://github.com/psf/requests.git@v1.1.0#egg=mypackage"
 
 
 class TestFactory:
 
     def test_pypi_factory(self):
-        factory = Pypi()
+        factory = PypiPkgFactory()
         assert factory.create("mypackage", {"source": "pypi"}).req_string() == "mypackage"
         assert factory.create("mypackage", {"source": "pypi", "version": "1.0.0"}).req_string() == "mypackage==1.0.0"
         assert factory.create("mypackage", {"source": "pypi", "version": "1.0.0",
@@ -143,7 +143,7 @@ class TestFactory:
 
     @patch("mipi_env_manager.main.GHTagReleases.get_latest_minor")
     def test_gh_factory(self, mock_get_latest_minor):
-        factory = Gh()
+        factory = GHPkgFactory()
         mock_get_latest_minor.return_value = "1.1.0"
         assert factory.create("mypackage", {"source": "pypi",
                                             "path": "https://github.com/psf/requests"}).req_string() == "mypackage @ git+https://github.com/psf/requests.git#egg=mypackage"
