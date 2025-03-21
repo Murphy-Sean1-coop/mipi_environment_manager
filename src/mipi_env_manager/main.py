@@ -288,6 +288,7 @@ class PypiReqString(ReqString):
     Example:
          `package==1.0.0`
     """
+
     def add_version(self, policy, version_str):
         version = PyPiVersion(policy, version_str).build()
         self._add_part(f"{version}")
@@ -299,6 +300,7 @@ class GHReqString(ReqString):
         Example:
              `requests @ git+https://github.com/psf/requests.git@v2.23.3#egg=request`
     """
+
     def add_path(self, path):
         self._add_part(f" @ git+{path}.git")
 
@@ -314,6 +316,7 @@ class ReqStringCreator(ABC):
     """
     DEFINES the methods to assemble an entire dependency in the reqirements.txt file
     """
+
     def __init__(self, req_string: ReqString, name, policy, version_str=None):
         self.name = name
         self.policy = policy
@@ -331,6 +334,7 @@ class PyPiReqStringCreator(ReqStringCreator):
     Example:
          `package==1.0.0`
     """
+
     def __init__(self, name, policy, version_str=None):
         super().__init__(PypiReqString(), name, policy, version_str)
 
@@ -347,6 +351,7 @@ class GHReqStringCreator(ReqStringCreator):
         Example:
              `requests @ git+https://github.com/psf/requests.git@v2.23.3#egg=request`
     """
+
     def __init__(self, name, policy, path, version_str=None):
         super().__init__(GHReqString(), name, policy, version_str)
         self.path = path
@@ -370,6 +375,7 @@ class PkgFactory(ABC):
     """
     Factory to call the package string builder.
     """
+
     @abstractmethod
     def create(self, name, vals):
         raise NotImplementedError  # pragma: no cover
@@ -379,6 +385,7 @@ class PypiPkgFactory(PkgFactory):
     """
     Factory to call the pypi package string builder.
     """
+
     def create(self, name, vals):
         return PyPiReqStringCreator(name, vals.get("version_policy"), vals.get("version"))
 
@@ -387,6 +394,7 @@ class GHPkgFactory(PkgFactory):
     """
     Factory to call the github package string builder.
     """
+
     def create(self, name, vals):
         return GHReqStringCreator(name, vals.get("version_policy"), vals.get("path"), vals.get("version"))
 
@@ -395,6 +403,7 @@ class Dependancies():
     """
     Creates the contents of the requirments.txt file
     """
+
     def __init__(self, config):
         self.config = config
         self.dict_ = {
@@ -416,19 +425,14 @@ class Dependancies():
         return "\n".join(dependencies)
 
 
-class BatInstaller:
-    """A batch script that installs environments. Uses a jinja template based on what it is installing"""
+class Bat(ABC):
+    """
+    Create a batch file from a jinja template
+    """
 
     def __init__(self, template, out_path):
         self.template = template
         self.out_path = out_path
-
-    def _get_out_path(self, name, subdir):
-        if subdir:
-            _path = os.path.join(self.out_path, subdir, name)
-        else:
-            _path = os.path.join(self.out_path, name)
-        return _path
 
     def _get_template(self):
         env = Environment(loader=FileSystemLoader("templates"), autoescape=select_autoescape())
@@ -439,26 +443,85 @@ class BatInstaller:
         content = temp.render(**kwargs)
         return content
 
-    def _maybe_create_subdir(self, subdir):
-        if subdir:
-            _path = os.path.join(self.out_path, subdir)
-        else:
-            _path = self.out_path
-        if not os.path.exists(_path):
-            os.makedirs(_path)
-
-    def create(self, name, subdir=None, **kwargs):
-        content = self._render_template(**kwargs)
-        file_path = self._get_out_path(name, subdir)
-        self._maybe_create_subdir(subdir)
-        with open(file_path, "w") as f:
+    def _save_file(self, content):
+        with open(self.out_path, "w") as f:
             f.write(content)
+    @abstractmethod
+    def extend_jinja_kwargs(self, **kwargs):
+        """
+        When inheriting from this class you might want to hard code arguments in to the jinja kwargs. To do so, extend
+        the **kwargs dictionary then return kwargs, otherwise just return kwargs
+        """
+        return kwargs
 
+    def create(self, **kwargs):
+        kwargs = self.extend_jinja_kwargs(**kwargs)
+        content = self._render_template(**kwargs)
+        self._save_file(content)
+
+
+class EnvBat(Bat):
+    """
+    Create an environment installer batch file
+    """
+
+    def __init__(self, out_path, env_name, file_name):
+        template = "env_installer.bat.jinja"
+        self.env_name = env_name
+        save_path = os.path.join(out_path, env_name, file_name)
+        self._maybe_create_subdir(save_path)
+        super().__init__(template, save_path)
+
+    def _maybe_create_subdir(self, save_path):
+        if not os.path.exists(save_path):
+            os.makedirs(save_path)
+
+
+class CreateEnvBat(EnvBat):
+    """
+    Create an environment installer batch file that creates a totally new environment
+    """
+    def __init__(self, out_path, env_name):
+        super().__init__(out_path, env_name, "create_env.bat")
+
+    def extend_jinja_kwargs(self, **kwargs):
+        kwargs.update({"create_env": True})
+        return kwargs
+
+
+class UpdateEnvBat(EnvBat):
+    """
+    Create an environment installer batch file that updates an existing environment
+    """
+    def __init__(self, out_path, env_name):
+        super().__init__(out_path, env_name, "update_env.bat")
+
+    def extend_jinja_kwargs(self, **kwargs):
+        kwargs.update({"create_env": False})
+        return kwargs
+
+class MasterEnvsBat(Bat):
+    """
+    Create an batch file that runs other environment installer batch files
+    """
+    def __init__(self, out_path):
+        write_path = os.path.join(out_path, "master_update_envs.bat")
+        super().__init__("master_installer.bat.jinja", write_path)
+
+
+class MasterUpdateEnvsBat(MasterEnvsBat):
+    """
+    Create an batch file that runs other batch files which each CREATE a new environment
+    """
+    def extend_jinja_kwargs(self, **kwargs):
+        kwargs.update({"create_envs": False})
+        return kwargs
 
 class PublishInstallers:
     """
     Builds all batch installers and writes them to the computers file system
     """
+
     def __init__(self, setup: Setup):
         self.setup = setup
         self.config = self.get_config()  # TODO i dont like having function calls in the init
@@ -473,19 +536,15 @@ class PublishInstallers:
         envs_to_include_in_master_installer = []
 
         for env, config in envs.items():
-            bat = BatInstaller("env_installer.bat.jinja", outpath)
-            bat.create("create_env.bat", subdir=env, env_name=env, create_env=True,
-                       py_version=config["setup"]["py_version"])
-            bat.create("update_env.bat", subdir=env, env_name=env, create_env=False,
-                       py_version=config["setup"]["py_version"])
+
+            CreateEnvBat(outpath, env).create(py_version=config["setup"]["py_version"])
+            UpdateEnvBat(outpath, env).create(py_version=config["setup"]["py_version"])
 
             if config["setup"]["include_in_master"]:
                 envs_to_include_in_master_installer.append(os.path.join(outpath, env))
 
-        mbat = BatInstaller("master_installer.bat.jinja", outpath)
-        mbat.create("master_update_env.bat",
-                    environment_variables=self.config["setup"]["environment_variables"],
-                    installers=envs_to_include_in_master_installer)
+        MasterUpdateEnvsBat(outpath).create(environment_variables=self.config["setup"]["environment_variables"],
+                                            installers=envs_to_include_in_master_installer)
 
         for env, config in envs.items():
             deps = Dependancies(config)

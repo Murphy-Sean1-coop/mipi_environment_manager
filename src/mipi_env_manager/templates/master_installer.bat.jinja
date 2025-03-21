@@ -3,5 +3,5 @@ SETX {{ k }} {{ v }}
 {% endfor %}
 
 {% for installer in installers %}
-call {{ installer }}\update_env.bat
+call {{ installer }}\{% if create_envs %}create_env.bat{% else %}update_env.bat{% endif %}
 {% endfor %}

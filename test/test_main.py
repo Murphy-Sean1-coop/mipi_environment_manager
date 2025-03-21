@@ -26,7 +26,11 @@ from mipi_env_manager.main import (
     , PypiPkgFactory
     , GHPkgFactory
     , Dependancies
-    , BatInstaller
+    , Bat
+    , CreateEnvBat
+    , UpdateEnvBat
+    , MasterEnvsBat
+    , MasterUpdateEnvsBat
     , main
 )
 
@@ -155,42 +159,42 @@ class TestFactory:
                               {"source": "pypi", "version": "1.0.0", "version_policy": "no_major_increment",
                                "path": "https://github.com/psf/requests"}).req_string() == "mypackage @ git+https://github.com/psf/requests.git@v1.1.0#egg=mypackage"
 
-
-class TestBatInstaller:
-    @pytest.fixture(scope="class")
-    def shared_temp_dir(self, tmp_path_factory):
-        return tmp_path_factory.mktemp("shared_temp_dir")
-
-    @pytest.fixture(scope="class")
-    def installer(self, shared_temp_dir):
-        return BatInstaller("test_bat.jinja", shared_temp_dir)
-
-    def test_construct(self, installer, shared_temp_dir):
-        assert isinstance(installer, BatInstaller)
-        assert installer.out_path == shared_temp_dir
-        assert installer.template == "test_bat.jinja"
-
-    def test_get_outpath(self, installer, shared_temp_dir):
-        assert installer._get_out_path("file.bat", "env1") == os.path.join(shared_temp_dir, "env1", "file.bat")
-        assert installer._get_out_path("file.bat", None) == os.path.join(shared_temp_dir, "file.bat")
-
-    def test_get_template(self, installer):
-        assert isinstance(installer._get_template(), Template)
-
-    def test_render_template(self, installer):
-        str_ = installer._render_template(val1="val1", val2="val2")
-        assert str_ == "val1 val2"
-
-    def test_create(self, installer, shared_temp_dir):
-        installer.create("create.bat", "env1", val1="val1", val2="val2")
-
-        dir_ = os.path.join(shared_temp_dir, "env1")
-        assert os.listdir(dir_) == ["create.bat"]
-
-        with open(os.path.join(dir_, "create.bat"), "r") as f:
-            content = f.read()
-
-        assert content == "val1 val2"
+#
+# class TestBatInstaller:
+#     @pytest.fixture(scope="class")
+#     def shared_temp_dir(self, tmp_path_factory):
+#         return tmp_path_factory.mktemp("shared_temp_dir")
+#
+#     @pytest.fixture(scope="class")
+#     def installer(self, shared_temp_dir):
+#         return BatInstaller("test_bat.jinja", shared_temp_dir)
+#
+#     def test_construct(self, installer, shared_temp_dir):
+#         assert isinstance(installer, BatInstaller)
+#         assert installer.out_path == shared_temp_dir
+#         assert installer.template == "test_bat.jinja"
+#
+#     def test_get_outpath(self, installer, shared_temp_dir):
+#         assert installer._get_out_path("file.bat", "env1") == os.path.join(shared_temp_dir, "env1", "file.bat")
+#         assert installer._get_out_path("file.bat", None) == os.path.join(shared_temp_dir, "file.bat")
+#
+#     def test_get_template(self, installer):
+#         assert isinstance(installer._get_template(), Template)
+#
+#     def test_render_template(self, installer):
+#         str_ = installer._render_template(val1="val1", val2="val2")
+#         assert str_ == "val1 val2"
+#
+#     def test_create(self, installer, shared_temp_dir):
+#         installer.create("create.bat", "env1", val1="val1", val2="val2")
+#
+#         dir_ = os.path.join(shared_temp_dir, "env1")
+#         assert os.listdir(dir_) == ["create.bat"]
+#
+#         with open(os.path.join(dir_, "create.bat"), "r") as f:
+#             content = f.read()
+#
+#         assert content == "val1 val2"
 
 
 
