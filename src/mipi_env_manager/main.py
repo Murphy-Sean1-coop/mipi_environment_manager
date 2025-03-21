@@ -424,6 +424,11 @@ class Dependancies():
             dependencies.append(pkg.create(k, v).req_string())
         return "\n".join(dependencies)
 
+    def write_requirments(self, write_path):
+        reqs = self.create_strings()
+        with open(write_path, "w") as f:
+            f.write(reqs)
+
 
 class Bat(ABC):
     """
@@ -548,9 +553,8 @@ class PublishInstallers:
 
         for env, config in envs.items():
             deps = Dependancies(config)
-            with open(os.path.join(outpath, env, "requirements.txt"), "w") as f:
-                f.write(deps.create_strings())
-
+            path = os.path.join(outpath, env, "requirements.txt")
+            deps.write_requirments(path)
 
 @click.command()
 def main():
