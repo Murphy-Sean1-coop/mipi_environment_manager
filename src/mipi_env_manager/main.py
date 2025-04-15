@@ -542,8 +542,8 @@ class PublishInstallers:
 
         for env, config in envs.items():
 
-            CreateEnvBat(outpath, env).create(py_version=config["setup"]["py_version"])
-            UpdateEnvBat(outpath, env).create(py_version=config["setup"]["py_version"])
+            CreateEnvBat(outpath, env).create(py_version=config["setup"]["py_version"], env_name=env)
+            UpdateEnvBat(outpath, env).create(py_version=config["setup"]["py_version"], env_name=env)
 
             if config["setup"]["include_in_master"]:
                 envs_to_include_in_master_installer.append(os.path.join(outpath, env))
