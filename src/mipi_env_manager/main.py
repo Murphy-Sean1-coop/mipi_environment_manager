@@ -606,11 +606,11 @@ class PublishInstallers:
             deps.write_requirments(path)
 
 @click.command()
-@click.option('--test/--prod', is_flag=True)
-def main(is_test):
+@click.option('--test/--prod', required = True, help = "specify if the batch files will write to the prod or test environment")
+def main(test):
     setup = YmlSetup(ENV_SETUP_PATH)
     publisher = PublishInstallers(setup)
-    publisher.publish(is_test)
+    publisher.publish(test)
 
 
 if __name__ == "__main__":
