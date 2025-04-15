@@ -440,7 +440,7 @@ class Bat(ABC):
         self.out_path = out_path
 
     def _get_template(self):
-        env = Environment(loader=FileSystemLoader("templates"), autoescape=select_autoescape())
+        env = Environment(loader=FileSystemLoader(Path(__file__).parent / "templates"), autoescape=select_autoescape())
         return env.get_template(self.template)
 
     def _render_template(self, **kwargs):
