@@ -79,3 +79,6 @@ setup: (local setup for all environments)
 - create_env.bat: run this to install the environment. overwrites it if it already exists
 - update_env.bat: run this to update the environment without overwriting it. This is much faster
 
+### 5 Build the batch files
+`mipi-build-envs --prod` Creates all your environment batch files
+`mipi-build-envs --test` Creates a copy of all batch files with suffix `_test` this allows you to run unit tests without modifying your environments

@@ -509,8 +509,8 @@ class MasterEnvsBat(Bat):
     """
     Create an batch file that runs other environment installer batch files
     """
-    def __init__(self, out_path):
-        write_path = os.path.join(out_path, "master_update_envs.bat")
+    def __init__(self, out_path,file_name):
+        write_path = os.path.join(out_path, file_name)
         super().__init__("master_installer.bat.jinja", write_path)
 
 
@@ -518,9 +518,50 @@ class MasterUpdateEnvsBat(MasterEnvsBat):
     """
     Create an batch file that runs other batch files which each CREATE a new environment
     """
+    def __init__(self, out_path):
+        super().__init__(out_path, "master_update_envs.bat")
+
     def extend_jinja_kwargs(self, **kwargs):
         kwargs.update({"create_envs": False})
         return kwargs
+
+
+class MasterUpdateEnvsBatTest(MasterEnvsBat):
+    """
+    Create an batch file that runs other batch files which each CREATE a new environment
+    """
+
+    def __init__(self, out_path):
+        super().__init__(out_path, "master_update_envs_test.bat")
+
+    def extend_jinja_kwargs(self, **kwargs):
+        kwargs.update({"create_envs": False})
+        return kwargs
+
+class MasterCreateEnvsBatTest(MasterEnvsBat):
+    """
+    Create an batch file that runs other batch files which each CREATE a new environment
+    """
+
+    def __init__(self, out_path):
+        super().__init__(out_path, "master_create_envs_test.bat")
+
+    def extend_jinja_kwargs(self, **kwargs):
+        kwargs.update({"create_envs": True})
+        return kwargs
+
+class MasterCreateEnvsBat(MasterEnvsBat):
+    """
+    Create an batch file that runs other batch files which each CREATE a new environment
+    """
+
+    def __init__(self, out_path):
+        super().__init__(out_path, "master_create_envs.bat")
+
+    def extend_jinja_kwargs(self, **kwargs):
+        kwargs.update({"create_envs": True})
+        return kwargs
+
 
 class PublishInstallers:
     """
@@ -534,7 +575,7 @@ class PublishInstallers:
     def get_config(self):
         return self.setup.get_config()
 
-    def publish(self):
+    def publish(self,test:bool):
         envs = self.config["environments"]
         outpath = self.config["setup"]["outpath"]
 
@@ -542,13 +583,21 @@ class PublishInstallers:
 
         for env, config in envs.items():
 
+            if test:
+                env = f"{env}_test"
             CreateEnvBat(outpath, env).create(py_version=config["setup"]["py_version"], env_name=env)
             UpdateEnvBat(outpath, env).create(py_version=config["setup"]["py_version"], env_name=env)
 
             if config["setup"]["include_in_master"]:
                 envs_to_include_in_master_installer.append(os.path.join(outpath, env))
 
-        MasterUpdateEnvsBat(outpath).create(environment_variables=self.config["setup"]["environment_variables"],
+        if test:
+            masters = [MasterCreateEnvsBatTest(outpath),MasterUpdateEnvsBatTest(outpath)]
+        else:
+            masters = [MasterUpdateEnvsBat(outpath)]
+
+        for m in masters:
+            m.create(environment_variables=self.config["setup"]["environment_variables"],
                                             installers=envs_to_include_in_master_installer)
 
         for env, config in envs.items():
@@ -557,10 +606,11 @@ class PublishInstallers:
             deps.write_requirments(path)
 
 @click.command()
-def main():
+@click.option('--test/--prod', is_flag=True)
+def main(is_test):
     setup = YmlSetup(ENV_SETUP_PATH)
     publisher = PublishInstallers(setup)
-    publisher.publish()
+    publisher.publish(is_test)
 
 
 if __name__ == "__main__":
