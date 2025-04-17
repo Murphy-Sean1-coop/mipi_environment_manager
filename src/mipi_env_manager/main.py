@@ -601,6 +601,8 @@ class PublishInstallers:
                                             installers=envs_to_include_in_master_installer)
 
         for env, config in envs.items():
+            if test:
+                env = f"{env}_test"
             deps = Dependancies(config)
             path = os.path.join(outpath, env, "requirements.txt")
             deps.write_requirments(path)
