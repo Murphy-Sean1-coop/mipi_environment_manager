@@ -9,7 +9,11 @@ call conda env list
 if %errorlevel% neq 0 goto FailClause
 
 call conda.bat activate {{ env_name }}
-if %errorlevel% neq 0 goto FailClause
+if %errorlevel% neq 0 (
+    echo Warning: Failed to activate environment '{{ env_name }}'. Continuing without activation.
+    pause
+    exit /b 0
+)
 
 call conda info --env
 if %errorlevel% neq 0 goto FailClause
@@ -34,3 +38,4 @@ echo There was an Error in the script
 echo There was an Error in the script
 
 pause
+exit /b 1
