@@ -473,8 +473,9 @@ class EnvBat(Bat):
     def __init__(self, out_path, env_name, file_name):
         template = "env_installer.bat.jinja"
         self.env_name = env_name
-        save_path = os.path.join(out_path, env_name, file_name)
-        self._maybe_create_subdir(save_path)
+        subdir_path = os.path.join(out_path, env_name)
+        self._maybe_create_subdir(subdir_path)
+        save_path = os.path.join(subdir_path, file_name)
         super().__init__(template, save_path)
 
     def _maybe_create_subdir(self, save_path):
