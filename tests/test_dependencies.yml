@@ -37,6 +37,14 @@ environments:
         path: https://github.com/psf/requests
         version: 1.0.0
         version_policy: no_major_increment
+  myenv2:
+    setup:
+      py_version: 3.12
+      include_in_master: False
+    packages:
+      my_pkg:
+        source: github
+        path: https://github.com/psf/requests
 
 setup:
-  outpath:
+  outpath: null

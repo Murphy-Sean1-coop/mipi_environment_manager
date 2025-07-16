@@ -451,6 +451,8 @@ class Bat(ABC):
     def _save_file(self, content):
         with open(self.out_path, "w") as f:
             f.write(content)
+        print(f"file written to: {self.out_path}")
+
     @abstractmethod
     def extend_jinja_kwargs(self, **kwargs):
         """
@@ -569,39 +571,46 @@ class PublishInstallers:
     Builds all batch installers and writes them to the computers file system
     """
 
-    def __init__(self, setup: Setup):
+    def __init__(self, setup: Setup, envs = None):
         self.setup = setup
         self.config = self.get_config()  # TODO i dont like having function calls in the init
+        self.envs = envs
 
     def get_config(self):
         return self.setup.get_config()
 
     def publish(self,test:bool):
-        envs = self.config["environments"]
+        envs_master = self.config["environments"]
+        if self.envs is not None:
+            envs_to_build = {env:vals for env, vals in envs_master.items() if env == self.envs}
+        else:
+            envs_to_build = envs_master
+
         outpath = self.config["setup"]["outpath"]
 
         envs_to_include_in_master_installer = []
 
-        for env, config in envs.items():
+        for env, config in envs_to_build.items():
 
             if test:
                 env = f"{env}_test"
             CreateEnvBat(outpath, env).create(py_version=config["setup"]["py_version"], env_name=env)
             UpdateEnvBat(outpath, env).create(py_version=config["setup"]["py_version"], env_name=env)
 
+        for env, config in envs_master.items():
             if config["setup"]["include_in_master"]:
                 envs_to_include_in_master_installer.append(os.path.join(outpath, env))
 
         if test:
             masters = [MasterCreateEnvsBatTest(outpath),MasterUpdateEnvsBatTest(outpath)]
         else:
-            masters = [MasterUpdateEnvsBat(outpath)]
+            masters = [MasterCreateEnvsBat(outpath), MasterUpdateEnvsBat(outpath)]
 
         for m in masters:
-            m.create(environment_variables=self.config["setup"]["environment_variables"],
+            m.create(environment_variables=self.config.get("setup", {}).get("environment_variables", {}),
                                             installers=envs_to_include_in_master_installer)
 
-        for env, config in envs.items():
+        for env, config in envs_to_build.items():
             if test:
                 env = f"{env}_test"
             deps = Dependancies(config)
@@ -610,9 +619,10 @@ class PublishInstallers:
 
 @click.command()
 @click.option('--test/--prod', required = True, help = "specify if the batch files will write to the prod or test environment")
-def main(test):
+@click.option('--env', required = False, help = "specify the name of the environment to create installers for")
+def main(test, env):
     setup = YmlSetup(ENV_SETUP_PATH)
-    publisher = PublishInstallers(setup)
+    publisher = PublishInstallers(setup, env)
     publisher.publish(test)
 
 

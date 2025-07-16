@@ -1,7 +1,12 @@
+from pathlib import Path
+
 import pytest
+from click.testing import CliRunner
 from unittest.mock import patch, MagicMock
 from tempfile import tempdir
 import os
+
+import yaml
 from jinja2 import Template
 from mipi_env_manager.main import (
     get_environ
@@ -159,45 +164,93 @@ class TestFactory:
                               {"source": "pypi", "version": "1.0.0", "version_policy": "no_major_increment",
                                "path": "https://github.com/psf/requests"}).req_string() == "mypackage @ git+https://github.com/psf/requests.git@v1.1.0#egg=mypackage"
 
-#
-# class TestBatInstaller:
-#     @pytest.fixture(scope="class")
-#     def shared_temp_dir(self, tmp_path_factory):
-#         return tmp_path_factory.mktemp("shared_temp_dir")
-#
-#     @pytest.fixture(scope="class")
-#     def installer(self, shared_temp_dir):
-#         return BatInstaller("test_bat.jinja", shared_temp_dir)
-#
-#     def test_construct(self, installer, shared_temp_dir):
-#         assert isinstance(installer, BatInstaller)
-#         assert installer.out_path == shared_temp_dir
-#         assert installer.template == "test_bat.jinja"
-#
-#     def test_get_outpath(self, installer, shared_temp_dir):
-#         assert installer._get_out_path("file.bat", "env1") == os.path.join(shared_temp_dir, "env1", "file.bat")
-#         assert installer._get_out_path("file.bat", None) == os.path.join(shared_temp_dir, "file.bat")
-#
-#     def test_get_template(self, installer):
-#         assert isinstance(installer._get_template(), Template)
-#
-#     def test_render_template(self, installer):
-#         str_ = installer._render_template(val1="val1", val2="val2")
-#         assert str_ == "val1 val2"
-#
-#     def test_create(self, installer, shared_temp_dir):
-#         installer.create("create.bat", "env1", val1="val1", val2="val2")
-#
-#         dir_ = os.path.join(shared_temp_dir, "env1")
-#         assert os.listdir(dir_) == ["create.bat"]
-#
-#         with open(os.path.join(dir_, "create.bat"), "r") as f:
-#             content = f.read()
-#
-#         assert content == "val1 val2"
+@pytest.fixture
+def patch_setup_outpath(monkeypatch, tmp_path):
+
+    monkeypatch.setenv("ENV_SETUP_PATH",str(Path(__file__).parent / "test_dependencies.yml"))
+    config = YmlSetup("ENV_SETUP_PATH").get_config()
+    config["setup"]["outpath"] = tmp_path
+
+    monkeypatch.setattr(YmlSetup, "get_config", lambda self: config)
+
+@pytest.fixture
+def patch_gh_get_latest_minor(monkeypatch):
+    monkeypatch.setattr(GHTagReleases, "get_latest_minor", lambda self: "1.1.0")
 
 
+@pytest.mark.usefixtures("patch_setup_outpath", "patch_gh_get_latest_minor")
+class TestSmoke:
 
+    @pytest.mark.parametrize("cli_args, file_sufix",
+                             [
+                             pytest.param(["--prod"], "",id = "prod mode"),
+                             pytest.param(["--test"], "_test",id = "test mode")
+    ])
+    def test_creates_all(self, cli_args, file_sufix, tmp_path):
+        runner = CliRunner()
+        runner.invoke(main,args = cli_args , catch_exceptions=False)
 
+        # myenv installers
+        assert (tmp_path / f"myenv{file_sufix}").is_dir()
+        assert (tmp_path / f"myenv{file_sufix}" / "create_env.bat").is_file()
+        assert (tmp_path / f"myenv{file_sufix}" / "update_env.bat").is_file()
+        assert (tmp_path / f"myenv{file_sufix}" / "requirements.txt").is_file()
 
+        # myenv2 installers
+        assert (tmp_path / f"myenv2{file_sufix}").is_dir()
+        assert (tmp_path / f"myenv2{file_sufix}" / "create_env.bat").is_file()
+        assert (tmp_path / f"myenv2{file_sufix}" / "update_env.bat").is_file()
+        assert (tmp_path / f"myenv2{file_sufix}" / "requirements.txt").is_file()
 
+        # master installers
+        assert (tmp_path / f"master_create_envs{file_sufix}.bat").is_file()
+        assert (tmp_path / f"master_update_envs{file_sufix}.bat").is_file()
+
+    def test_reqs(self, tmp_path):
+        runner = CliRunner()
+        runner.invoke(main, args =["--prod"], catch_exceptions=False)
+
+        # myenv
+        expected = (Path(__file__).parent / "expected_reqs.txt").read_text()
+        assert (tmp_path / f"myenv" / "requirements.txt").read_text() == expected
+
+        # myenv2
+        expected2 = "my_pkg @ git+https://github.com/psf/requests.git#egg=my_pkg"
+        assert (tmp_path / f"myenv2" / "requirements.txt").read_text() == expected2
+
+    @pytest.mark.parametrize("cli_args, env, envs_excluded",
+                             [
+                             pytest.param(["--prod", "--env", "myenv"], "myenv", "myenv2", id = "myenv only"),
+                             pytest.param(["--prod", "--env", "myenv2"], "myenv2", "myenv", id = "myenv2 only")
+    ])
+    def test_creates_single_env(self, cli_args, env,envs_excluded, tmp_path):
+        runner = CliRunner()
+        runner.invoke(main,args = cli_args , catch_exceptions=False)
+
+        # included installers
+        assert (tmp_path / f"{env}").is_dir()
+        assert (tmp_path / f"{env}" / "create_env.bat").is_file()
+        assert (tmp_path / f"{env}" / "update_env.bat").is_file()
+        assert (tmp_path / f"{env}" / "requirements.txt").is_file()
+
+        # excluded installers
+        assert not (tmp_path / f"{envs_excluded}").is_dir()
+        assert not (tmp_path / f"{envs_excluded}" / "create_env.bat").is_file()
+        assert not (tmp_path / f"{envs_excluded}" / "update_env.bat").is_file()
+        assert not (tmp_path / f"{envs_excluded}" / "requirements.txt").is_file()
+
+        # master installers
+        assert (tmp_path / f"master_create_envs.bat").is_file()
+        assert (tmp_path / f"master_update_envs.bat").is_file()
+
+    def test_write_to_master_updater(self,tmp_path):
+        runner = CliRunner()
+        runner.invoke(main, args =["--prod"], catch_exceptions=False)
+
+        master_updater = (tmp_path / "master_update_envs.bat").read_text()
+        master_creater = (tmp_path / "master_create_envs.bat").read_text()
+
+        assert "myenv" in master_updater
+        assert "myenv2" not in master_updater
+        assert "myenv" in master_creater
+        assert "myenv2" not in master_creater
