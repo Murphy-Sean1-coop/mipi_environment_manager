@@ -80,5 +80,13 @@ setup: (local setup for all environments)
 - update_env.bat: run this to update the environment without overwriting it. This is much faster
 
 ### 5 Build the batch files
-`mipi-build-envs --prod` Creates all your environment batch files
-`mipi-build-envs --test` Creates a copy of all batch files with suffix `_test` this allows you to run unit tests without modifying your environments
+
+#### Command
+`mipi-publish-envs`
+
+#### Flags
+`--prod` (flag) build production installers
+`--test` (flag) build test installers
+`--envs` (key word) only build one environment
+`--master` (flag) build “master” installers. must be used with test and/or prod, master installer file will
+    always include all files set to "include in master" as per the setup file, even if you use `--envs`
