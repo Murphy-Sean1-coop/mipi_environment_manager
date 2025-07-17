@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "mipi_env_manager"
-version = "0.2.0"
+version = "0.3.0"
 description = ""
 authors = ["Sean Murphy <murphy-sean1@cooperhealth.edu>"]
 readme = "README.md"
@@ -21,4 +21,4 @@ requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.scripts]
-mipi-build-envs = "mipi_env_manager.main:main"
+mipi-build-envs = "mipi_env_manager.main:mipi-publish-envs"

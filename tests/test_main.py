@@ -181,32 +181,53 @@ def patch_gh_get_latest_minor(monkeypatch):
 @pytest.mark.usefixtures("patch_setup_outpath", "patch_gh_get_latest_minor")
 class TestSmoke:
 
-    @pytest.mark.parametrize("cli_args, file_sufix",
+    @pytest.mark.parametrize("cli_args, expected_envs",
                              [
-                             pytest.param(["--prod"], "",id = "prod mode"),
-                             pytest.param(["--test"], "_test",id = "test mode")
+                             pytest.param([], None, id = "None"),
+                             pytest.param(["--prod"], None, id = "prod"),
+                             pytest.param(["--prod", "--env", "myenv"],["myenv"], id = "prod myenv"),
+                             pytest.param(["--prod", "--env", "myenv2"],["myenv2"], id = "prod myenv2"),
+                             pytest.param(["--test"], None,id = "test"),
+                             pytest.param(["--master"], None,id = "master"),
+                             pytest.param(["--master", "--env", "myenv"], ["myenv"], id="master myenv"),
+                             pytest.param(["--test", "--master"],None,id = "test, master"),
+                             pytest.param(["--prod", "--master"],None,id = "prod, master"),
+                             pytest.param(["--prod", "--master", "--env", "myenv"], ["myenv"], id = "prod master myenv"),
+                             pytest.param(["--prod", "--test"],None,id = "prod, test"),
+                             pytest.param(["--prod", "--test", "--master"],None,id = "all"),
+                             pytest.param(["--prod", "--test", "--master", "--env","myenv"],["myenv"],id = "all myenv"),
+                             pytest.param(["--prod", "--test", "--master", "--env","myenv2"],["myenv2"],id = "all myenv2"),
+
     ])
-    def test_creates_all(self, cli_args, file_sufix, tmp_path):
+    def test_creates_all(self, cli_args, expected_envs, tmp_path):
         runner = CliRunner()
         runner.invoke(main,args = cli_args , catch_exceptions=False)
 
-        # myenv installers
-        assert (tmp_path / f"myenv{file_sufix}").is_dir()
-        assert (tmp_path / f"myenv{file_sufix}" / "create_env.bat").is_file()
-        assert (tmp_path / f"myenv{file_sufix}" / "update_env.bat").is_file()
-        assert (tmp_path / f"myenv{file_sufix}" / "requirements.txt").is_file()
+        suffixes = []
+        if "--prod" in cli_args:
+            suffixes.append("")
+        if "--test" in cli_args:
+            suffixes.append("_test")
 
-        # myenv2 installers
-        assert (tmp_path / f"myenv2{file_sufix}").is_dir()
-        assert (tmp_path / f"myenv2{file_sufix}" / "create_env.bat").is_file()
-        assert (tmp_path / f"myenv2{file_sufix}" / "update_env.bat").is_file()
-        assert (tmp_path / f"myenv2{file_sufix}" / "requirements.txt").is_file()
+        xpt_envs = expected_envs or ["myenv", "myenv2"]
 
-        # master installers
-        assert (tmp_path / f"master_create_envs{file_sufix}.bat").is_file()
-        assert (tmp_path / f"master_update_envs{file_sufix}.bat").is_file()
+        for suffix in suffixes:
+            # test/prod master installers only created with when master flag is specified with test/prod
+            if "--master" in cli_args:
+                assert (tmp_path / f"master_create_envs{suffix}.bat").is_file()
+                assert (tmp_path / f"master_update_envs{suffix}.bat").is_file()
+            else:
+                assert not (tmp_path / f"master_create_envs{suffix}.bat").is_file()
+                assert not (tmp_path / f"master_update_envs{suffix}.bat").is_file()
+            #
+            for xpt_env in xpt_envs:
+                assert (tmp_path / f"{xpt_env}{suffix}").is_dir()
+                assert (tmp_path / f"{xpt_env}{suffix}" / "create_env.bat").is_file()
+                assert (tmp_path / f"{xpt_env}{suffix}" / "update_env.bat").is_file()
+                assert (tmp_path / f"{xpt_env}{suffix}" / "requirements.txt").is_file()
 
-    def test_reqs(self, tmp_path):
+
+    def test_reqs_contents(self, tmp_path):
         runner = CliRunner()
         runner.invoke(main, args =["--prod"], catch_exceptions=False)
 
@@ -218,34 +239,9 @@ class TestSmoke:
         expected2 = "my_pkg @ git+https://github.com/psf/requests.git#egg=my_pkg"
         assert (tmp_path / f"myenv2" / "requirements.txt").read_text() == expected2
 
-    @pytest.mark.parametrize("cli_args, env, envs_excluded",
-                             [
-                             pytest.param(["--prod", "--env", "myenv"], "myenv", "myenv2", id = "myenv only"),
-                             pytest.param(["--prod", "--env", "myenv2"], "myenv2", "myenv", id = "myenv2 only")
-    ])
-    def test_creates_single_env(self, cli_args, env,envs_excluded, tmp_path):
-        runner = CliRunner()
-        runner.invoke(main,args = cli_args , catch_exceptions=False)
-
-        # included installers
-        assert (tmp_path / f"{env}").is_dir()
-        assert (tmp_path / f"{env}" / "create_env.bat").is_file()
-        assert (tmp_path / f"{env}" / "update_env.bat").is_file()
-        assert (tmp_path / f"{env}" / "requirements.txt").is_file()
-
-        # excluded installers
-        assert not (tmp_path / f"{envs_excluded}").is_dir()
-        assert not (tmp_path / f"{envs_excluded}" / "create_env.bat").is_file()
-        assert not (tmp_path / f"{envs_excluded}" / "update_env.bat").is_file()
-        assert not (tmp_path / f"{envs_excluded}" / "requirements.txt").is_file()
-
-        # master installers
-        assert (tmp_path / f"master_create_envs.bat").is_file()
-        assert (tmp_path / f"master_update_envs.bat").is_file()
-
     def test_write_to_master_updater(self,tmp_path):
         runner = CliRunner()
-        runner.invoke(main, args =["--prod"], catch_exceptions=False)
+        runner.invoke(main, args =["--prod", "--master"], catch_exceptions=False)
 
         master_updater = (tmp_path / "master_update_envs.bat").read_text()
         master_creater = (tmp_path / "master_create_envs.bat").read_text()

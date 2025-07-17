@@ -571,59 +571,77 @@ class PublishInstallers:
     Builds all batch installers and writes them to the computers file system
     """
 
-    def __init__(self, setup: Setup, envs = None):
+    def __init__(self, setup: Setup, test, prod, master, envs = None):
         self.setup = setup
         self.config = self.get_config()  # TODO i dont like having function calls in the init
+        self.test = test
+        self.prod = prod
+        self.master = master
         self.envs = envs
 
     def get_config(self):
         return self.setup.get_config()
 
-    def publish(self,test:bool):
+    def publish(self):
+        outpath =  self.config["setup"]["outpath"]
         envs_master = self.config["environments"]
+
+        # setup envs to include for single installers. User defined
         if self.envs is not None:
             envs_to_build = {env:vals for env, vals in envs_master.items() if env == self.envs}
         else:
             envs_to_build = envs_master
 
-        outpath = self.config["setup"]["outpath"]
+        # setup envs to include in master installers. always defined by setup, only run if user spefifies to create.
+        # Only creates master/test as per user
+        if self.master:
+            envs_to_include_in_master_installer = []
+            for env_master, config in envs_master.items():
+                if config["setup"]["include_in_master"]:
+                    envs_to_include_in_master_installer.append(os.path.join(outpath, env_master))
 
-        envs_to_include_in_master_installer = []
 
-        for env, config in envs_to_build.items():
-
-            if test:
-                env = f"{env}_test"
-            CreateEnvBat(outpath, env).create(py_version=config["setup"]["py_version"], env_name=env)
-            UpdateEnvBat(outpath, env).create(py_version=config["setup"]["py_version"], env_name=env)
-
-        for env, config in envs_master.items():
-            if config["setup"]["include_in_master"]:
-                envs_to_include_in_master_installer.append(os.path.join(outpath, env))
-
-        if test:
-            masters = [MasterCreateEnvsBatTest(outpath),MasterUpdateEnvsBatTest(outpath)]
-        else:
-            masters = [MasterCreateEnvsBat(outpath), MasterUpdateEnvsBat(outpath)]
-
-        for m in masters:
-            m.create(environment_variables=self.config.get("setup", {}).get("environment_variables", {}),
-                                            installers=envs_to_include_in_master_installer)
 
         for env, config in envs_to_build.items():
-            if test:
-                env = f"{env}_test"
-            deps = Dependancies(config)
-            path = os.path.join(outpath, env, "requirements.txt")
-            deps.write_requirments(path)
+
+            if self.test:
+                env_test = f"{env}_test"
+                CreateEnvBat(outpath, env_test).create(py_version=config["setup"]["py_version"], env_name=env_test)
+                UpdateEnvBat(outpath, env_test).create(py_version=config["setup"]["py_version"], env_name=env_test)
+                deps = Dependancies(config)
+                path = os.path.join(outpath, env_test, "requirements.txt")
+                deps.write_requirments(path)
+
+                if self.master:
+                    master_envs_test = [MasterCreateEnvsBatTest(outpath),MasterUpdateEnvsBatTest(outpath)]
+                    for m in master_envs_test:
+                        m.create(environment_variables=self.config.get("setup", {}).get("environment_variables", {}),
+                                                        installers=envs_to_include_in_master_installer)
+
+            if self.prod:
+                env_prod = env
+                CreateEnvBat(outpath, env_prod).create(py_version=config["setup"]["py_version"], env_name=env_prod)
+                UpdateEnvBat(outpath, env_prod).create(py_version=config["setup"]["py_version"], env_name=env_prod)
+                deps = Dependancies(config)
+                path = os.path.join(outpath, env_prod, "requirements.txt")
+                deps.write_requirments(path)
+
+                if self.master:
+                    master_envs_prod = [MasterCreateEnvsBat(outpath), MasterUpdateEnvsBat(outpath)]
+                    for m in master_envs_prod:
+                        m.create(environment_variables=self.config.get("setup", {}).get("environment_variables", {}),
+                                                        installers=envs_to_include_in_master_installer)
+
 
 @click.command()
-@click.option('--test/--prod', required = True, help = "specify if the batch files will write to the prod or test environment")
+@click.option('--test', is_flag = True, help = "If true, writes the test installers")
+@click.option('--prod', is_flag = True, help = "If true, writes the prod installers")
+@click.option('--master', is_flag = True, help = "If true, writes the master installers")
 @click.option('--env', required = False, help = "specify the name of the environment to create installers for")
-def main(test, env):
+def main(test, prod, master, env):
     setup = YmlSetup(ENV_SETUP_PATH)
-    publisher = PublishInstallers(setup, env)
-    publisher.publish(test)
+    publisher = PublishInstallers(setup, test, prod, master, env)
+    publisher.publish()
 
 
 if __name__ == "__main__":
