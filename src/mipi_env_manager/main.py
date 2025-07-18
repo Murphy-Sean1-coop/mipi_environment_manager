@@ -136,7 +136,7 @@ class Releases(ABC):
     """
 
     @abstractmethod
-    def get_latest_minor(self):
+    def get_latest_patch(self):
         raise NotImplementedError  # pragma: no cover
 
     @abstractmethod
@@ -153,20 +153,19 @@ class GHTagReleases(Releases):
         self.releases = releases
         self.current_version = current_version
 
-    def get_latest_minor(self) -> str:
+    def get_latest_patch(self) -> str:
 
-        current_major = version.parse(self.current_version).major
+        current_version = version.parse(self.current_version)
 
         # Prepare a list to hold valid releases (of the same major version)
         valid_versions = []
         for release in self.releases:
-            tag = release.get("tag_name", "")
             # Remove a leading "v" if present (common in semantic version tags)
-            tag_clean = tag.lstrip("v")
+            tag_clean = release.lstrip("v")
             try:
                 ver = version.parse(tag_clean)
                 # Only consider versions with the same major version as our current version.
-                if ver.major == current_major:
+                if ver.major == current_version.major and ver.minor == current_version.minor :
                     valid_versions.append(ver)
             except Exception as e:
                 # Skip tags that don't parse correctly
@@ -231,7 +230,7 @@ class PyPiVersion(Version):
         else:
             if self.policy == "exact":
                 return f"=={self.version_str}"  # Question i dont like how this is responsible for the == while the other string prefixes belong to the ReqString class
-            elif self.policy == "no_major_increment":
+            elif self.policy == "compatible":
                 return f"~={self.version_str}"
 
 
@@ -259,9 +258,9 @@ class GHVersion(Version):
         else:
             if self.policy == "exact":
                 return f"v{self.version_str}"
-            elif self.policy == "no_major_increment":
+            elif self.policy == "compatible":
                 rel_obj = self._get_releases()  # TODO Abstrac this
-                return f"v{rel_obj.get_latest_minor()}"
+                return f"v{rel_obj.get_latest_patch()}"
 
 
 class ReqString:

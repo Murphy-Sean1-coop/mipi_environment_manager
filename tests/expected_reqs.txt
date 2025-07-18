@@ -1,7 +1,7 @@
 my_pkg @ git+https://github.com/psf/requests.git#egg=my_pkg
 my_pkg2 @ git+https://github.com/psf/requests.git@v1.0.0#egg=my_pkg2
 my_pkg3 @ git+https://github.com/psf/requests.git@v1.0.0#egg=my_pkg3
-my_pkg4 @ git+https://github.com/psf/requests.git@v1.1.0#egg=my_pkg4
+my_pkg4 @ git+https://github.com/psf/requests.git@v1.0.1#egg=my_pkg4
 my_pkg5
 my_pkg6==1.0.0
 my_pkg7==1.0.0
