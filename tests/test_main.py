@@ -249,3 +249,10 @@ class TestSmoke:
         assert "myenv2" not in master_updater
         assert "myenv" in master_creater
         assert "myenv2" not in master_creater
+
+    def test_master_only_called_once(self,tmp_path):
+        runner = CliRunner()
+
+        with patch("mipi_env_manager.main.MasterCreateEnvsBat.create") as mock_func:
+            runner.invoke(main, args =["--prod", "--test", "--master"], catch_exceptions=False)
+            mock_func.assert_called_once()

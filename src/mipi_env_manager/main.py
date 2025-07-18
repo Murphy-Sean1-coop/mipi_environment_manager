@@ -465,6 +465,12 @@ class Bat(ABC):
         content = self._render_template(**kwargs)
         self._save_file(content)
 
+    def __eq__(self, other):
+        return other.out_path == self.out_path
+
+    def __hash__(self):
+        return hash(self.out_path)
+
 
 class EnvBat(Bat):
     """
@@ -599,8 +605,7 @@ class PublishInstallers:
                 if config["setup"]["include_in_master"]:
                     envs_to_include_in_master_installer.append(os.path.join(outpath, env_master))
 
-
-
+        masters_to_create = set()
         for env, config in envs_to_build.items():
 
             if self.test:
@@ -612,10 +617,7 @@ class PublishInstallers:
                 deps.write_requirments(path)
 
                 if self.master:
-                    master_envs_test = [MasterCreateEnvsBatTest(outpath),MasterUpdateEnvsBatTest(outpath)]
-                    for m in master_envs_test:
-                        m.create(environment_variables=self.config.get("setup", {}).get("environment_variables", {}),
-                                                        installers=envs_to_include_in_master_installer)
+                    masters_to_create.update({MasterCreateEnvsBatTest(outpath), MasterUpdateEnvsBatTest(outpath)})
 
             if self.prod:
                 env_prod = env
@@ -626,10 +628,11 @@ class PublishInstallers:
                 deps.write_requirments(path)
 
                 if self.master:
-                    master_envs_prod = [MasterCreateEnvsBat(outpath), MasterUpdateEnvsBat(outpath)]
-                    for m in master_envs_prod:
-                        m.create(environment_variables=self.config.get("setup", {}).get("environment_variables", {}),
-                                                        installers=envs_to_include_in_master_installer)
+                    masters_to_create.update({MasterCreateEnvsBat(outpath), MasterUpdateEnvsBat(outpath)})
+
+        for m in masters_to_create:
+            m.create(environment_variables=self.config.get("setup", {}).get("environment_variables", {}),
+                     installers=envs_to_include_in_master_installer)
 
 
 @click.command()
