@@ -160,8 +160,9 @@ class GHTagReleases(Releases):
         # Prepare a list to hold valid releases (of the same major version)
         valid_versions = []
         for release in self.releases:
+            tag = release.get("tag_name", "")
             # Remove a leading "v" if present (common in semantic version tags)
-            tag_clean = release.lstrip("v")
+            tag_clean = tag.lstrip("v")
             try:
                 ver = version.parse(tag_clean)
                 # Only consider versions with the same major version as our current version.

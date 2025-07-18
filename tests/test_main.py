@@ -76,7 +76,7 @@ class TestVersion:
     )
     @patch("mipi_env_manager.main.GHRequest.get_repo_releases")
     def test_gh_version(self,mock_get_releases, v, policy, res):
-        mock_get_releases.return_value = ["v1.0.0", "v1.0.1"]
+        mock_get_releases.return_value = [{"tag_name": "v1.0.0"}, {"tag_name": "v1.0.1"}]
         assert GHVersion("pfs","requests",policy, version_str=v).build() == res
 
     def test_pypi_version_raises(self):

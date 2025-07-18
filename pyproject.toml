@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "mipi_env_manager"
-version = "0.3.1"
+version = "0.3.2"
 description = ""
 authors = ["Sean Murphy <murphy-sean1@cooperhealth.edu>"]
 readme = "README.md"
