@@ -256,3 +256,11 @@ class TestSmoke:
         with patch("mipi_env_manager.main.MasterCreateEnvsBat.create") as mock_func:
             runner.invoke(main, args =["--prod", "--test", "--master"], catch_exceptions=False)
             mock_func.assert_called_once()
+
+    def test_create_set_environ_bat(self, tmp_path):
+        runner = CliRunner()
+        runner.invoke(main, args =["--prod", "--master"], catch_exceptions=False)
+
+        env_text = (tmp_path / "set_environ.bat").read_text()
+        expected = "\nSETX env_key env_val\n"
+        assert env_text == expected

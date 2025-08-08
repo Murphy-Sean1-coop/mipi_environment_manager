@@ -48,3 +48,5 @@ environments:
 
 setup:
   outpath: null
+  environment_variables:
+    "env_key": "env_val"

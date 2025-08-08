@@ -472,6 +472,16 @@ class Bat(ABC):
     def __hash__(self):
         return hash(self.out_path)
 
+class SetEnvironBat(Bat):
+    """
+    Create an batch file that runs other environment installer batch files
+    """
+    def __init__(self, out_path):
+        write_path = os.path.join(out_path, "set_environ.bat")
+        super().__init__("set_environ.bat.jinja", write_path)
+
+    def extend_jinja_kwargs(self, **kwargs):
+        return kwargs
 
 class EnvBat(Bat):
     """
@@ -634,6 +644,7 @@ class PublishInstallers:
         for m in masters_to_create:
             m.create(environment_variables=self.config.get("setup", {}).get("environment_variables", {}),
                      installers=envs_to_include_in_master_installer)
+        SetEnvironBat(outpath).create(environment_variables=self.config.get("setup", {}).get("environment_variables", {}))
 
 
 @click.command()
