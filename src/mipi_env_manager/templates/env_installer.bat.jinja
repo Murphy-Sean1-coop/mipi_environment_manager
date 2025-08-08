@@ -1,6 +1,9 @@
 pushd %~dp0
 
 {% if create_env %}
+  {% for k,v in environment_variables.items() %}
+    SETX {{ k }} {{ v }}
+  {% endfor %}
 call conda create --name {{ env_name }} -y python={{ py_version }} pip
 if %errorlevel% neq 0 goto FailClause
 {% endif %}

@@ -621,7 +621,8 @@ class PublishInstallers:
 
             if self.test:
                 env_test = f"{env}_test"
-                CreateEnvBat(outpath, env_test).create(py_version=config["setup"]["py_version"], env_name=env_test)
+                CreateEnvBat(outpath, env_test).create(py_version=config["setup"]["py_version"], env_name=env_test,
+                                                       environment_variables=self.config.get("setup", {}).get("environment_variables", {}))
                 UpdateEnvBat(outpath, env_test).create(py_version=config["setup"]["py_version"], env_name=env_test)
                 deps = Dependancies(config)
                 path = os.path.join(outpath, env_test, "requirements.txt")
@@ -632,7 +633,8 @@ class PublishInstallers:
 
             if self.prod:
                 env_prod = env
-                CreateEnvBat(outpath, env_prod).create(py_version=config["setup"]["py_version"], env_name=env_prod)
+                CreateEnvBat(outpath, env_prod).create(py_version=config["setup"]["py_version"], env_name=env_prod,
+                                                       environment_variables=self.config.get("setup", {}).get("environment_variables", {}))
                 UpdateEnvBat(outpath, env_prod).create(py_version=config["setup"]["py_version"], env_name=env_prod)
                 deps = Dependancies(config)
                 path = os.path.join(outpath, env_prod, "requirements.txt")
