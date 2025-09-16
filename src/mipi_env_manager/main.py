@@ -554,7 +554,12 @@ class MasterUpdateEnvsBatTest(MasterEnvsBat):
         super().__init__(out_path, "master_update_envs_test.bat")
 
     def extend_jinja_kwargs(self, **kwargs):
-        kwargs.update({"create_envs": False})
+
+        _installers = kwargs.get("installers", [])
+        _test_installers =  [f"{e}_test" for e in _installers]
+
+        kwargs.update({"create_envs": False,
+                       "installers": _test_installers})
         return kwargs
 
 class MasterCreateEnvsBatTest(MasterEnvsBat):
@@ -566,7 +571,12 @@ class MasterCreateEnvsBatTest(MasterEnvsBat):
         super().__init__(out_path, "master_create_envs_test.bat")
 
     def extend_jinja_kwargs(self, **kwargs):
-        kwargs.update({"create_envs": True})
+
+        _installers = kwargs.get("installers", [])
+        _test_installers =  [f"{e}_test" for e in _installers]
+
+        kwargs.update({"create_envs": True,
+                       "installers": _test_installers})
         return kwargs
 
 class MasterCreateEnvsBat(MasterEnvsBat):

@@ -250,12 +250,30 @@ class TestSmoke:
         assert "myenv" in master_creater
         assert "myenv2" not in master_creater
 
-    def test_master_only_called_once(self,tmp_path):
+    @pytest.mark.parametrize("cli_args, call_write_prod_master, call_write_test_master",
+                             [
+                             pytest.param([], False, False, id = "None"),
+                             pytest.param(["--prod"], False, False, id = "prod"),
+                             pytest.param(["--test"], False, False,id = "test"),
+                             pytest.param(["--master"], False, False,id = "master"),
+                             pytest.param(["--test", "--master"], False, True,id = "test, master"),
+                             pytest.param(["--prod", "--master"], True, False,id = "prod, master"),
+                             pytest.param(["--prod", "--test"], False, False,id = "prod, test"),
+                             pytest.param(["--prod", "--test", "--master"], True, True,id = "all"),
+
+    ])
+    def test_master_writer_only_called_once_per_env_type(self,cli_args, call_write_prod_master, call_write_test_master, tmp_path):
         runner = CliRunner()
 
-        with patch("mipi_env_manager.main.MasterCreateEnvsBat.create") as mock_func:
-            runner.invoke(main, args =["--prod", "--test", "--master"], catch_exceptions=False)
-            mock_func.assert_called_once()
+        with patch("mipi_env_manager.main.MasterCreateEnvsBat.create") as mk_prod, \
+            patch("mipi_env_manager.main.MasterCreateEnvsBatTest.create") as mk_test:
+
+            runner.invoke(main, args =cli_args, catch_exceptions=False)
+
+            if call_write_prod_master:
+                mk_prod.assert_called_once()
+            if call_write_test_master:
+                mk_test.assert_called_once()
 
     def test_create_set_environ_bat(self, tmp_path):
         runner = CliRunner()
@@ -264,3 +282,18 @@ class TestSmoke:
         env_text = (tmp_path / "set_environ.bat").read_text()
         expected = "\nSETX env_key env_val\n"
         assert env_text == expected
+
+    def test_masters_refrence_correct_test_prod_envs(self, tmp_path):
+
+        runner = CliRunner()
+        runner.invoke(main, args =["--prod", "--test","--master"], catch_exceptions=False)
+
+        prod_create_text = (tmp_path / "master_create_envs.bat").read_text()
+        prod_update_text = (tmp_path / "master_update_envs.bat").read_text()
+        test_create_text = (tmp_path / "master_create_envs_test.bat").read_text()
+        test_update_text = (tmp_path / "master_update_envs_test.bat").read_text()
+
+        assert r"\myenv\create_env.bat" in prod_create_text
+        assert r"\myenv\update_env.bat" in prod_update_text
+        assert r"\myenv_test\create_env.bat" in test_create_text
+        assert r"\myenv_test\update_env.bat" in test_update_text
